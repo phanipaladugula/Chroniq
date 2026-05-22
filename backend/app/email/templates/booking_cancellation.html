@@ -1,46 +1,64 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
-  <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-      <tr><td style="background:#111827;padding:28px 40px;">
-        <table width="100%"><tr>
-          <td><span style="color:#ffffff;font-size:20px;font-weight:700;">{{ app_name }}</span></td>
-          <td align="right"><span style="background:#ef4444;color:#ffffff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">❌ CANCELLED</span></td>
-        </tr></table>
-      </td></tr>
-      <tr><td style="padding:40px;">
-        <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#111827;">Your meeting has been cancelled</h1>
-        <p style="margin:0 0 32px;color:#6b7280;font-size:15px;">Hi {{ booker_name }}, the following meeting has been cancelled.</p>
-        <table width="100%" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:0 0 32px;">
-          <tr><td style="padding:24px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr><td style="padding:8px 0;border-bottom:1px solid #fecaca;">
-                <span style="color:#6b7280;font-size:13px;font-weight:500;display:block;margin-bottom:2px;">EVENT</span>
-                <span style="color:#111827;font-size:15px;font-weight:600;text-decoration:line-through;color:#9ca3af;">{{ event_title }}</span>
-              </td></tr>
-              <tr><td style="padding:8px 0;border-bottom:1px solid #fecaca;">
-                <span style="color:#6b7280;font-size:13px;font-weight:500;display:block;margin-bottom:2px;">WAS SCHEDULED FOR</span>
-                <span style="color:#9ca3af;font-size:15px;text-decoration:line-through;">{{ date_time }}</span>
-              </td></tr>
-              {% if reason %}
-              <tr><td style="padding:8px 0;">
-                <span style="color:#6b7280;font-size:13px;font-weight:500;display:block;margin-bottom:2px;">REASON</span>
-                <span style="color:#374151;font-size:14px;">{{ reason }}</span>
-              </td></tr>
-              {% endif %}
-            </table>
-          </td></tr>
-        </table>
-        <a href="{{ book_again_url }}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:600;">Book Again</a>
-      </td></tr>
-      <tr><td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
-        <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">Sent by {{ app_name }}</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Meeting Cancelled</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a0a; font-family:'Inter',system-ui,sans-serif; color:#e8e8e8; }
+  .wrapper { max-width:580px; margin:0 auto; padding:32px 16px; }
+  .card { background:#161616; border:1px solid #2a2a2a; border-radius:16px; overflow:hidden; }
+  .header { background:#1a1a1a; border-bottom:1px solid #2a2a2a; padding:28px 32px; text-align:center; }
+  .logo { font-size:22px; font-weight:800; letter-spacing:-0.8px; color:#fff; }
+  .logo-dot { color:#10b981; }
+  .body { padding:32px; }
+  .cancel-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.25); color:#f87171; border-radius:999px; padding:5px 14px; font-size:12px; font-weight:600; margin-bottom:20px; }
+  h1 { font-size:22px; font-weight:700; color:#fff; letter-spacing:-0.5px; margin-bottom:6px; }
+  .subtitle { font-size:14px; color:#9ca3af; margin-bottom:24px; line-height:1.6; }
+  .info-card { background:#1e1e1e; border:1px solid #2a2a2a; border-radius:10px; padding:16px 18px; margin-bottom:24px; }
+  .info-label { font-size:10px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px; }
+  .info-value { font-size:14px; color:#9ca3af; text-decoration:line-through; }
+  .reason-box { background:rgba(248,113,113,.06); border:1px solid rgba(248,113,113,.15); border-radius:8px; padding:14px; margin-bottom:24px; }
+  .reason-label { font-size:11px; font-weight:600; color:#f87171; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px; }
+  .reason-text { font-size:13px; color:#d1d5db; line-height:1.6; }
+  .btn { display:inline-block; padding:11px 20px; border-radius:8px; font-size:13px; font-weight:600; text-decoration:none; background:#fff; color:#111; }
+  .footer { padding:24px 32px; background:#111; border-top:1px solid #1e1e1e; text-align:center; }
+  .footer p { font-size:11px; color:#4b5563; line-height:1.7; }
+  .footer a { color:#6b7280; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="card">
+    <div class="header"><div class="logo">Chroniq<span class="logo-dot">.</span></div></div>
+    <div class="body">
+      <div class="cancel-badge">✕ Meeting Cancelled</div>
+      <h1>Hi {{ booker_name }}, your meeting has been cancelled</h1>
+      <p class="subtitle">Your booking with {{ host_name }} has been cancelled.</p>
+
+      <div class="info-card">
+        <div class="info-label">Cancelled Event</div>
+        <div style="font-size:15px;font-weight:600;color:#e8e8e8;margin-bottom:4px;">{{ event_title }}</div>
+        <div class="info-value">{{ date_time }}</div>
+      </div>
+
+      {% if reason %}
+      <div class="reason-box">
+        <div class="reason-label">Reason</div>
+        <div class="reason-text">{{ reason }}</div>
+      </div>
+      {% endif %}
+
+      <p style="font-size:13px;color:#9ca3af;margin-bottom:20px;line-height:1.7;">
+        If this was a mistake or you'd like to book again, click below.
+      </p>
+      <a href="{{ book_again_url }}" class="btn">📅 Book Again</a>
+    </div>
+    <div class="footer">
+      <p>Sent by <strong>{{ app_name }}</strong><br /><a href="{{ frontend_url }}">{{ frontend_url }}</a></p>
+    </div>
+  </div>
+</div>
 </body>
 </html>

@@ -342,40 +342,30 @@ async def get_available_slots(
     if not raw_slots:
         return []
 
-    # 5. Query existing confirmed bookings for the day (with buffer)
-    day_start_utc = datetime.combine(target_date, time.min, tzinfo=schedule_tz).astimezone(
-        timezone.utc
-    )
-    day_end_utc = datetime.combine(target_date, time.max, tzinfo=schedule_tz).astimezone(
-        timezone.utc
-    )
+    # 5. Query existing confirmed bookings for the day (extended window for buffer)
+    max_buffer = timedelta(hours=2)  # generous window to catch cross-day buffers
+    day_start_utc = (
+        datetime.combine(target_date, time.min, tzinfo=schedule_tz) - max_buffer
+    ).astimezone(timezone.utc)
+    day_end_utc = (
+        datetime.combine(target_date, time.max, tzinfo=schedule_tz) + max_buffer
+    ).astimezone(timezone.utc)
 
-    bookings_result = await db.execute(
-        select(Booking).where(
-            Booking.event_type_id == event_type_id,
-            Booking.status == "confirmed",
-            Booking.start_time < day_end_utc,
-            Booking.end_time > day_start_utc,
-        )
-    )
-    existing_bookings = bookings_result.scalars().all()
-
-    # Also check bookings on ALL event types for this user (prevent double-booking the host)
+    # Get bookings for all user event types in the extended window
     all_event_types_result = await db.execute(
         select(EventType.id).where(EventType.user_id == event_type.user_id)
     )
     user_event_type_ids = [row[0] for row in all_event_types_result.all()]
 
-    if len(user_event_type_ids) > 1:
-        all_bookings_result = await db.execute(
-            select(Booking).where(
-                Booking.event_type_id.in_(user_event_type_ids),
-                Booking.status == "confirmed",
-                Booking.start_time < day_end_utc,
-                Booking.end_time > day_start_utc,
-            )
+    all_bookings_result = await db.execute(
+        select(Booking).where(
+            Booking.event_type_id.in_(user_event_type_ids),
+            Booking.status == "confirmed",
+            Booking.start_time < day_end_utc,
+            Booking.end_time > day_start_utc,
         )
-        existing_bookings = all_bookings_result.scalars().all()
+    )
+    existing_bookings = all_bookings_result.scalars().all()
 
     buffer_before = timedelta(minutes=event_type.buffer_before)
     buffer_after = timedelta(minutes=event_type.buffer_after)
@@ -400,22 +390,29 @@ async def get_available_slots(
         if slot_start_utc > now_utc + max_advance:
             continue
 
-        # Check for conflicts with existing bookings (respecting buffers)
-        buffered_start = slot_start_utc - buffer_before
-        buffered_end = slot_end_utc + buffer_after
-
+        # 6. Check for conflicts with existing bookings (respecting buffers).
+        # A slot [slot_start, slot_end] conflicts with booking [B_start, B_end] if:
+        #   slot_start < B_end + buffer_after  AND  slot_end > B_start - buffer_before
+        # i.e., the slot falls within the booking's buffered exclusion zone.
         has_conflict = False
-        for booking in existing_bookings:
-            booking_start = booking.start_time
-            booking_end = booking.end_time
-            # Make sure booking times are tz-aware
-            if booking_start.tzinfo is None:
-                booking_start = booking_start.replace(tzinfo=timezone.utc)
-            if booking_end.tzinfo is None:
-                booking_end = booking_end.replace(tzinfo=timezone.utc)
+        for bk in existing_bookings:
+            bk_start = bk.start_time
+            bk_end = bk.end_time
+            if bk_start.tzinfo is None:
+                bk_start = bk_start.replace(tzinfo=timezone.utc)
+            if bk_end.tzinfo is None:
+                bk_end = bk_end.replace(tzinfo=timezone.utc)
 
-            # Overlap check: buffered slot vs booking
-            if buffered_start < booking_end and buffered_end > booking_start:
+            # Get the buffers for the existing booking's event type
+            # (could be a different event type with different buffers)
+            bk_buffer_before = buffer_before  # use this event type's buffers as conservative estimate
+            bk_buffer_after = buffer_after
+
+            # Exclusion zone around existing booking: [B_start - buffer_before, B_end + buffer_after]
+            excl_start = bk_start - bk_buffer_before
+            excl_end = bk_end + bk_buffer_after
+
+            if slot_start_utc < excl_end and slot_end_utc > excl_start:
                 has_conflict = True
                 break
 

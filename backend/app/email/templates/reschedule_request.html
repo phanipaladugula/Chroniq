@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Reschedule Request</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a0a; font-family:'Inter',system-ui,sans-serif; color:#e8e8e8; }
+  .wrapper { max-width:580px; margin:0 auto; padding:32px 16px; }
+  .card { background:#161616; border:1px solid #2a2a2a; border-radius:16px; overflow:hidden; }
+  .header { background:#1a1a1a; border-bottom:1px solid #2a2a2a; padding:28px 32px; text-align:center; }
+  .logo { font-size:22px; font-weight:800; letter-spacing:-0.8px; color:#fff; }
+  .logo-dot { color:#10b981; }
+  .body { padding:32px; }
+  .request-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(251,191,36,.1); border:1px solid rgba(251,191,36,.25); color:#fbbf24; border-radius:999px; padding:5px 14px; font-size:12px; font-weight:600; margin-bottom:20px; }
+  h1 { font-size:22px; font-weight:700; color:#fff; letter-spacing:-0.5px; margin-bottom:6px; }
+  .subtitle { font-size:14px; color:#9ca3af; margin-bottom:24px; line-height:1.6; }
+  .info-card { background:#1e1e1e; border:1px solid #2a2a2a; border-radius:10px; padding:16px 18px; margin-bottom:20px; }
+  .info-label { font-size:10px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px; }
+  .info-value { font-size:14px; color:#e8e8e8; font-weight:500; }
+  .message-box { background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.15); border-radius:8px; padding:14px; margin-bottom:24px; }
+  .message-label { font-size:11px; font-weight:600; color:#fbbf24; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px; }
+  .message-text { font-size:13px; color:#d1d5db; line-height:1.6; }
+  .actions { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+  .btn { display:inline-block; padding:11px 20px; border-radius:8px; font-size:13px; font-weight:600; text-decoration:none; }
+  .btn-primary { background:#fff; color:#111; }
+  .btn-secondary { background:transparent; color:#9ca3af; border:1px solid #2a2a2a; }
+  .footer { padding:24px 32px; background:#111; border-top:1px solid #1e1e1e; text-align:center; }
+  .footer p { font-size:11px; color:#4b5563; line-height:1.7; }
+  .footer a { color:#6b7280; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="card">
+    <div class="header"><div class="logo">Chroniq<span class="logo-dot">.</span></div></div>
+    <div class="body">
+      <div class="request-badge">📅 Reschedule Requested</div>
+      <h1>Hi {{ booker_name }}, {{ host_name }} would like to reschedule</h1>
+      <p class="subtitle">Your host has requested to move your upcoming meeting to a different time.</p>
+
+      <div class="info-card">
+        <div class="info-label">Meeting</div>
+        <div class="info-value" style="margin-bottom:6px;">{{ event_title }}</div>
+        <div class="info-label">Scheduled Time</div>
+        <div class="info-value">{{ date_time }}</div>
+      </div>
+
+      {% if custom_message %}
+      <div class="message-box">
+        <div class="message-label">Message from {{ host_name }}</div>
+        <div class="message-text">{{ custom_message }}</div>
+      </div>
+      {% endif %}
+
+      <p style="font-size:13px;color:#9ca3af;margin-bottom:20px;line-height:1.7;">
+        Please click below to pick a new time that works for you.
+      </p>
+
+      <div class="actions">
+        <a href="{{ reschedule_url }}" class="btn btn-primary">🔄 Pick a New Time</a>
+        <a href="{{ cancel_url }}" class="btn btn-secondary">✕ Cancel Meeting</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>Sent by <strong>{{ app_name }}</strong><br /><a href="{{ frontend_url }}">{{ frontend_url }}</a></p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

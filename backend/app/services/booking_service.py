@@ -19,19 +19,26 @@ from app.utils import generate_meeting_url
 logger = logging.getLogger(__name__)
 
 
+async def _load_booking_with_relations(db: AsyncSession, booking_id: int) -> Booking:
+    """Load a booking with event_type (and its user) eagerly loaded."""
+    from app.models.user import User  # avoid circular at module level
+    result = await db.execute(
+        select(Booking)
+        .where(Booking.id == booking_id)
+        .options(
+            selectinload(Booking.event_type).selectinload(EventType.user)
+        )
+    )
+    booking = result.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    return booking
+
+
 async def create_booking(
     db: AsyncSession, event_type_id: int, data: BookingCreate
 ) -> Booking:
-    """Create a booking with SELECT FOR UPDATE locking to prevent double-booking.
-
-    Steps:
-        1. Lock the event type row with FOR UPDATE
-        2. Calculate end_time from start_time + duration
-        3. Check for conflicts (existing bookings overlapping [start - buffer_before, end + buffer_after])
-        4. If conflict found, raise HTTPException 409
-        5. Create booking with uid=uuid4()
-        6. Return booking
-    """
+    """Create a booking with SELECT FOR UPDATE locking to prevent double-booking."""
     # 1. Lock the event type row
     result = await db.execute(
         select(EventType)
@@ -41,10 +48,7 @@ async def create_booking(
     event_type = result.scalar_one_or_none()
 
     if not event_type:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event type not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event type not found")
 
     if not event_type.is_active:
         raise HTTPException(
@@ -78,13 +82,15 @@ async def create_booking(
     duration = timedelta(minutes=event_type.duration_minutes)
     end_time = start_time + duration
 
-    # 3. Check for conflicts with buffer times
+    # 3. Check conflicts across ALL event types for this user (host double-booking prevention)
+    #    Buffer windows: buffered_start = start - buffer_before, buffered_end = end + buffer_after
     buffer_before = timedelta(minutes=event_type.buffer_before)
     buffer_after = timedelta(minutes=event_type.buffer_after)
-    buffered_start = start_time - buffer_before
-    buffered_end = end_time + buffer_after
+    # The new slot occupies [start, end]. For it to be free:
+    # No existing booking's [existing_start - buffer_after, existing_end + buffer_before]
+    # should overlap with [start, end].
+    # Equivalently: existing_start < end + buffer_after AND existing_end > start - buffer_before
 
-    # Check across ALL event types for this user (prevent double-booking the host)
     all_event_types_result = await db.execute(
         select(EventType.id).where(EventType.user_id == event_type.user_id)
     )
@@ -94,17 +100,17 @@ async def create_booking(
         select(Booking).where(
             Booking.event_type_id.in_(user_event_type_ids),
             Booking.status == "confirmed",
-            Booking.start_time < buffered_end,
-            Booking.end_time > buffered_start,
+            # existing booking's buffer window overlaps with new slot
+            Booking.start_time < end_time + buffer_after,
+            Booking.end_time > start_time - buffer_before,
         )
     )
     existing = conflict_result.scalar_one_or_none()
 
-    # 4. If conflict, raise 409
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This time slot conflicts with an existing booking. Please choose another time.",
+            detail="This time slot conflicts with an existing booking (including buffer times). Please choose another time.",
         )
 
     # 5. Create booking
@@ -118,19 +124,16 @@ async def create_booking(
         end_time=end_time,
         status="confirmed",
         custom_responses=data.custom_responses,
-        notes=data.notes,
+        notes=data.notes if hasattr(data, 'notes') else None,
         meeting_url=generate_meeting_url(),
     )
     db.add(booking)
     await db.flush()
-    await db.refresh(booking)
 
     logger.info(
         "Created booking uid=%s for event type %d at %s",
         booking.uid, event_type_id, start_time.isoformat(),
     )
-
-    # 6. Return booking
     return booking
 
 
@@ -141,16 +144,7 @@ async def get_bookings(
     page: int = 1,
     limit: int = 20,
 ) -> tuple[Sequence[Booking], int]:
-    """Get bookings for a user's event types with pagination.
-
-    Args:
-        status_filter: 'upcoming', 'past', or 'cancelled'
-        page: Page number (1-indexed)
-        limit: Items per page
-
-    Returns:
-        Tuple of (bookings, total_count)
-    """
+    """Get bookings for a user's event types with pagination, sorted correctly."""
     now_utc = datetime.now(timezone.utc)
 
     # Get all event type IDs for this user
@@ -162,7 +156,6 @@ async def get_bookings(
     if not user_event_type_ids:
         return [], 0
 
-    # Build base query
     base_filter = Booking.event_type_id.in_(user_event_type_ids)
 
     if status_filter == "upcoming":
@@ -170,15 +163,19 @@ async def get_bookings(
             Booking.status == "confirmed",
             Booking.start_time > now_utc,
         )
+        sort_order = Booking.start_time.asc()  # Earliest first
     elif status_filter == "past":
         status_condition = and_(
             Booking.status == "confirmed",
             Booking.start_time <= now_utc,
         )
+        sort_order = Booking.start_time.desc()  # Most recent first
     elif status_filter == "cancelled":
-        status_condition = Booking.status == "cancelled"
+        status_condition = Booking.status.in_(["cancelled", "rescheduled"])
+        sort_order = Booking.start_time.desc()
     else:
         status_condition = None
+        sort_order = Booking.start_time.desc()
 
     # Count total
     count_query = select(func.count(Booking.id)).where(base_filter)
@@ -193,7 +190,7 @@ async def get_bookings(
         select(Booking)
         .where(base_filter)
         .options(selectinload(Booking.event_type))
-        .order_by(Booking.start_time.desc())
+        .order_by(sort_order)
         .offset(offset)
         .limit(limit)
     )
@@ -206,8 +203,30 @@ async def get_bookings(
     return bookings, total
 
 
+async def get_recent_bookings(db: AsyncSession, user_id: int, limit: int = 5) -> Sequence[Booking]:
+    """Get the most recently created bookings for notification purposes."""
+    et_result = await db.execute(
+        select(EventType.id).where(EventType.user_id == user_id)
+    )
+    user_event_type_ids = [row[0] for row in et_result.all()]
+    if not user_event_type_ids:
+        return []
+
+    result = await db.execute(
+        select(Booking)
+        .where(
+            Booking.event_type_id.in_(user_event_type_ids),
+            Booking.status == "confirmed",
+        )
+        .options(selectinload(Booking.event_type))
+        .order_by(Booking.created_at.desc())
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
 async def get_booking_by_uid(db: AsyncSession, uid: str) -> Booking:
-    """Get a single booking by its public UID."""
+    """Get a single booking by its public UID with event_type loaded."""
     try:
         booking_uid = uuid.UUID(uid)
     except ValueError:
@@ -219,7 +238,9 @@ async def get_booking_by_uid(db: AsyncSession, uid: str) -> Booking:
     result = await db.execute(
         select(Booking)
         .where(Booking.uid == booking_uid)
-        .options(selectinload(Booking.event_type))
+        .options(
+            selectinload(Booking.event_type).selectinload(EventType.user)
+        )
     )
     booking = result.scalar_one_or_none()
     if not booking:
@@ -245,7 +266,6 @@ async def cancel_booking(
     booking.status = "cancelled"
     booking.cancellation_reason = reason
     await db.flush()
-    await db.refresh(booking)
     logger.info("Cancelled booking uid=%s, reason=%s", uid, reason)
     return booking
 
@@ -253,29 +273,77 @@ async def cancel_booking(
 async def reschedule_booking(
     db: AsyncSession, uid: str, new_start_time: datetime
 ) -> Booking:
-    """Reschedule a booking: cancel the old one and create a new one at the new time."""
-    old_booking = await get_booking_by_uid(db, uid)
+    """Reschedule a booking IN-PLACE: update start/end time, keep same UID.
 
-    if old_booking.status == "cancelled":
+    This is preferred over cancel+create because the booking UID stays stable
+    and the booker's confirmation link remains valid.
+    """
+    booking = await get_booking_by_uid(db, uid)
+
+    if booking.status == "cancelled":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot reschedule a cancelled booking.",
         )
 
-    # Cancel the old booking
-    old_booking.status = "rescheduled"
-    old_booking.cancellation_reason = "Rescheduled to new time"
+    event_type = booking.event_type
+    if not event_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event type not found for this booking.",
+        )
 
-    # Create new booking at the new time
-    new_booking_data = BookingCreate(
-        booker_name=old_booking.booker_name,
-        booker_email=old_booking.booker_email,
-        booker_timezone=old_booking.booker_timezone,
-        start_time=new_start_time,
-        custom_responses=old_booking.custom_responses or {},
-        notes=old_booking.notes,
+    # Ensure new_start_time is tz-aware
+    if new_start_time.tzinfo is None:
+        new_start_time = new_start_time.replace(tzinfo=timezone.utc)
+
+    now_utc = datetime.now(timezone.utc)
+
+    # Validate min_notice
+    min_notice = timedelta(minutes=event_type.min_notice_minutes)
+    if new_start_time < now_utc + min_notice:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"New time must be at least {event_type.min_notice_minutes} minutes from now.",
+        )
+
+    # Calculate new end_time
+    duration = timedelta(minutes=event_type.duration_minutes)
+    new_end_time = new_start_time + duration
+
+    # Check for conflicts (excluding this booking itself)
+    buffer_before = timedelta(minutes=event_type.buffer_before)
+    buffer_after = timedelta(minutes=event_type.buffer_after)
+
+    all_event_types_result = await db.execute(
+        select(EventType.id).where(EventType.user_id == event_type.user_id)
     )
+    user_event_type_ids = [row[0] for row in all_event_types_result.all()]
 
-    new_booking = await create_booking(db, old_booking.event_type_id, new_booking_data)
-    logger.info("Rescheduled booking uid=%s → new uid=%s", uid, new_booking.uid)
-    return new_booking
+    conflict_result = await db.execute(
+        select(Booking).where(
+            Booking.id != booking.id,  # exclude self
+            Booking.event_type_id.in_(user_event_type_ids),
+            Booking.status == "confirmed",
+            Booking.start_time < new_end_time + buffer_after,
+            Booking.end_time > new_start_time - buffer_before,
+        )
+    )
+    if conflict_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The new time conflicts with an existing booking.",
+        )
+
+    # Update in-place
+    old_start = booking.start_time
+    booking.start_time = new_start_time
+    booking.end_time = new_end_time
+    booking.status = "confirmed"
+
+    await db.flush()
+    logger.info(
+        "Rescheduled booking uid=%s from %s → %s",
+        uid, old_start.isoformat(), new_start_time.isoformat(),
+    )
+    return booking

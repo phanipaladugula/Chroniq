@@ -1,48 +1,72 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
-  <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-      <tr><td style="background:#111827;padding:28px 40px;">
-        <table width="100%"><tr>
-          <td><span style="color:#ffffff;font-size:20px;font-weight:700;">{{ app_name }}</span></td>
-          <td align="right"><span style="background:#f59e0b;color:#ffffff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">🔄 RESCHEDULED</span></td>
-        </tr></table>
-      </td></tr>
-      <tr><td style="padding:40px;">
-        <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#111827;">Your meeting has been rescheduled</h1>
-        <p style="margin:0 0 32px;color:#6b7280;font-size:15px;">Hi {{ booker_name }}, your meeting time has changed. Here are the updated details.</p>
-        <table width="100%" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin:0 0 32px;">
-          <tr><td style="padding:24px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr><td style="padding:8px 0;border-bottom:1px solid #e5e7eb;">
-                <span style="color:#6b7280;font-size:13px;font-weight:500;display:block;margin-bottom:2px;">EVENT</span>
-                <span style="color:#111827;font-size:15px;font-weight:600;">{{ event_title }}</span>
-              </td></tr>
-              <tr><td style="padding:8px 0;border-bottom:1px solid #e5e7eb;">
-                <span style="color:#6b7280;font-size:13px;font-weight:500;display:block;margin-bottom:2px;">OLD TIME</span>
-                <span style="color:#9ca3af;font-size:14px;text-decoration:line-through;">{{ old_date_time }}</span>
-              </td></tr>
-              <tr><td style="padding:8px 0;border-bottom:1px solid #e5e7eb;">
-                <span style="color:#6b7280;font-size:13px;font-weight:500;display:block;margin-bottom:2px;">NEW TIME</span>
-                <span style="color:#111827;font-size:15px;font-weight:600;">{{ new_date_time }}</span>
-              </td></tr>
-              <tr><td style="padding:8px 0;">
-                <span style="color:#6b7280;font-size:13px;font-weight:500;display:block;margin-bottom:2px;">DURATION</span>
-                <span style="color:#111827;font-size:15px;font-weight:600;">{{ duration }}</span>
-              </td></tr>
-            </table>
-          </td></tr>
-        </table>
-        <a href="{{ cancel_url }}" style="display:inline-block;background:#ffffff;color:#374151;text-decoration:none;padding:11px 24px;border-radius:6px;font-size:14px;font-weight:600;border:1px solid #d1d5db;">Cancel Meeting</a>
-      </td></tr>
-      <tr><td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
-        <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">Sent by {{ app_name }}</p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Meeting Rescheduled</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a0a; font-family:'Inter',system-ui,sans-serif; color:#e8e8e8; }
+  .wrapper { max-width:580px; margin:0 auto; padding:32px 16px; }
+  .card { background:#161616; border:1px solid #2a2a2a; border-radius:16px; overflow:hidden; }
+  .header { background:#1a1a1a; border-bottom:1px solid #2a2a2a; padding:28px 32px; text-align:center; }
+  .logo { font-size:22px; font-weight:800; letter-spacing:-0.8px; color:#fff; }
+  .logo-dot { color:#10b981; }
+  .body { padding:32px; }
+  .reschedule-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(96,165,250,.1); border:1px solid rgba(96,165,250,.25); color:#60a5fa; border-radius:999px; padding:5px 14px; font-size:12px; font-weight:600; margin-bottom:20px; }
+  h1 { font-size:22px; font-weight:700; color:#fff; letter-spacing:-0.5px; margin-bottom:6px; }
+  .subtitle { font-size:14px; color:#9ca3af; margin-bottom:24px; line-height:1.6; }
+  .time-change { background:#1e1e1e; border:1px solid #2a2a2a; border-radius:10px; overflow:hidden; margin-bottom:24px; }
+  .time-row { padding:14px 18px; border-bottom:1px solid #222; }
+  .time-row:last-child { border-bottom:none; }
+  .time-label { font-size:10px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px; }
+  .time-old { font-size:14px; color:#6b7280; text-decoration:line-through; }
+  .time-new { font-size:14px; font-weight:600; color:#10b981; }
+  .arrow { text-align:center; padding:10px; color:#374151; font-size:18px; }
+  .btn-row { display:flex; gap:10px; margin-bottom:20px; }
+  .btn { display:inline-block; padding:11px 20px; border-radius:8px; font-size:13px; font-weight:600; text-decoration:none; }
+  .btn-secondary { background:transparent; color:#9ca3af; border:1px solid #2a2a2a; }
+  .footer { padding:24px 32px; background:#111; border-top:1px solid #1e1e1e; text-align:center; }
+  .footer p { font-size:11px; color:#4b5563; line-height:1.7; }
+  .footer a { color:#6b7280; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="card">
+    <div class="header"><div class="logo">Chroniq<span class="logo-dot">.</span></div></div>
+    <div class="body">
+      <div class="reschedule-badge">🔄 Rescheduled</div>
+      <h1>Your meeting has been rescheduled</h1>
+      <p class="subtitle">Hi {{ booker_name }}, your meeting with {{ host_name }} has been moved to a new time.</p>
+
+      <div class="time-change">
+        <div class="time-row">
+          <div class="time-label">Previous Time</div>
+          <div class="time-old">{{ old_date_time }}</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="time-row">
+          <div class="time-label">New Time ✓</div>
+          <div class="time-new">{{ new_date_time }}</div>
+        </div>
+        <div class="time-row">
+          <div class="time-label">Duration</div>
+          <div style="font-size:14px;color:#e8e8e8;">{{ duration }}</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <a href="{{ cancel_url }}" class="btn btn-secondary">✕ Cancel Instead</a>
+      </div>
+      <p style="font-size:12px;color:#6b7280;line-height:1.7;">
+        If you didn't request this change, please cancel using the link above.
+      </p>
+    </div>
+    <div class="footer">
+      <p>Sent by <strong>{{ app_name }}</strong><br /><a href="{{ frontend_url }}">{{ frontend_url }}</a></p>
+    </div>
+  </div>
+</div>
 </body>
 </html>

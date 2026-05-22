@@ -1,10 +1,10 @@
 """Email service using aiosmtplib and Jinja2 templates."""
 
 import logging
-import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from typing import Optional
 
 import aiosmtplib
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -27,7 +27,7 @@ class EmailService:
         self.jinja = _get_jinja_env()
 
     async def _send(self, to: str, subject: str, html: str, text: str = "") -> None:
-        """Send an email via SMTP with retry logic."""
+        """Send an email via SMTP. Silently skips if no credentials configured."""
         if not self.settings.SMTP_USER or not self.settings.SMTP_PASSWORD:
             logger.warning("SMTP credentials not configured — skipping email to %s", to)
             return
@@ -71,10 +71,18 @@ class EmailService:
         except Exception:
             return str(dt)
 
+    def _base_ctx(self) -> dict:
+        return {
+            "app_name": self.settings.APP_NAME,
+            "frontend_url": self.settings.FRONTEND_URL,
+        }
+
     async def send_booking_confirmation(self, booking, event_type, host_user) -> None:
+        """Send booking confirmation to booker + notification to host."""
         try:
             frontend = self.settings.FRONTEND_URL
             ctx = {
+                **self._base_ctx(),
                 "booker_name": booking.booker_name,
                 "event_title": event_type.title if event_type else "Meeting",
                 "date_time": self._fmt_dt(booking.start_time, booking.booker_timezone),
@@ -83,7 +91,7 @@ class EmailService:
                 "meeting_url": booking.meeting_url or "",
                 "reschedule_url": f"{frontend}/booking/{booking.uid}/reschedule",
                 "cancel_url": f"{frontend}/booking/{booking.uid}/cancel",
-                "app_name": self.settings.APP_NAME,
+                "location_type": event_type.location_type if event_type else "custom",
             }
             html = self._render("booking_confirmation.html", ctx)
             await self._send(
@@ -91,28 +99,32 @@ class EmailService:
                 f"✅ Confirmed: {ctx['event_title']} with {ctx['host_name']}",
                 html,
             )
-            # Also notify host
+            # Notify host too
             if host_user and host_user.email:
                 host_ctx = {**ctx, "booker_name": f"{booking.booker_name} ({booking.booker_email})"}
                 host_html = self._render("booking_confirmation.html", host_ctx)
                 await self._send(
                     host_user.email,
-                    f"New booking: {ctx['event_title']} with {booking.booker_name}",
+                    f"📅 New booking: {ctx['event_title']} with {booking.booker_name}",
                     host_html,
                 )
         except Exception as e:
             logger.error("Error sending confirmation email: %s", e)
 
     async def send_booking_cancellation(self, booking, event_type, host_user) -> None:
+        """Send cancellation notification to booker."""
         try:
             frontend = self.settings.FRONTEND_URL
+            username = host_user.username if host_user else "john"
+            slug = event_type.slug if event_type else ""
             ctx = {
+                **self._base_ctx(),
                 "booker_name": booking.booker_name,
                 "event_title": event_type.title if event_type else "Meeting",
                 "date_time": self._fmt_dt(booking.start_time, booking.booker_timezone),
-                "reason": booking.cancellation_reason or "No reason provided",
-                "book_again_url": f"{frontend}/{host_user.username if host_user else 'john'}/{event_type.slug if event_type else ''}",
-                "app_name": self.settings.APP_NAME,
+                "reason": booking.cancellation_reason or None,
+                "book_again_url": f"{frontend}/{username}/{slug}",
+                "host_name": host_user.name if host_user else "Host",
             }
             html = self._render("booking_cancellation.html", ctx)
             await self._send(
@@ -124,16 +136,18 @@ class EmailService:
             logger.error("Error sending cancellation email: %s", e)
 
     async def send_booking_reschedule(self, booking, event_type, host_user, old_start, old_end) -> None:
+        """Send reschedule confirmation to booker."""
         try:
             frontend = self.settings.FRONTEND_URL
             ctx = {
+                **self._base_ctx(),
                 "booker_name": booking.booker_name,
                 "event_title": event_type.title if event_type else "Meeting",
                 "old_date_time": self._fmt_dt(old_start, booking.booker_timezone),
                 "new_date_time": self._fmt_dt(booking.start_time, booking.booker_timezone),
                 "duration": f"{event_type.duration_minutes} min" if event_type else "",
+                "host_name": host_user.name if host_user else "Host",
                 "cancel_url": f"{frontend}/booking/{booking.uid}/cancel",
-                "app_name": self.settings.APP_NAME,
             }
             html = self._render("booking_reschedule.html", ctx)
             await self._send(
@@ -143,3 +157,55 @@ class EmailService:
             )
         except Exception as e:
             logger.error("Error sending reschedule email: %s", e)
+
+    async def send_reschedule_request(
+        self, booking, event_type, host_user, custom_message: Optional[str] = None
+    ) -> None:
+        """Send a request to the booker asking them to reschedule."""
+        try:
+            frontend = self.settings.FRONTEND_URL
+            ctx = {
+                **self._base_ctx(),
+                "booker_name": booking.booker_name,
+                "event_title": event_type.title if event_type else "Meeting",
+                "date_time": self._fmt_dt(booking.start_time, booking.booker_timezone),
+                "host_name": host_user.name if host_user else "Host",
+                "custom_message": custom_message,
+                "reschedule_url": f"{frontend}/booking/{booking.uid}/reschedule",
+                "cancel_url": f"{frontend}/booking/{booking.uid}/cancel",
+            }
+            html = self._render("reschedule_request.html", ctx)
+            await self._send(
+                booking.booker_email,
+                f"📅 Reschedule request: {ctx['event_title']} with {ctx['host_name']}",
+                html,
+            )
+        except Exception as e:
+            logger.error("Error sending reschedule request email: %s", e)
+
+    async def send_cancel_request(
+        self, booking, event_type, host_user, custom_message: Optional[str] = None
+    ) -> None:
+        """Send a request to the booker asking them to cancel."""
+        try:
+            frontend = self.settings.FRONTEND_URL
+            username = host_user.username if host_user else "john"
+            slug = event_type.slug if event_type else ""
+            ctx = {
+                **self._base_ctx(),
+                "booker_name": booking.booker_name,
+                "event_title": event_type.title if event_type else "Meeting",
+                "date_time": self._fmt_dt(booking.start_time, booking.booker_timezone),
+                "host_name": host_user.name if host_user else "Host",
+                "custom_message": custom_message,
+                "cancel_url": f"{frontend}/booking/{booking.uid}/cancel",
+                "book_again_url": f"{frontend}/{username}/{slug}",
+            }
+            html = self._render("cancel_request.html", ctx)
+            await self._send(
+                booking.booker_email,
+                f"⚠️ Action needed: {ctx['event_title']} with {ctx['host_name']}",
+                html,
+            )
+        except Exception as e:
+            logger.error("Error sending cancel request email: %s", e)

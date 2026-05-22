@@ -73,9 +73,10 @@ export default function ReschedulePage() {
   const handleReschedule = async (slot) => {
     setRescheduling(true)
     try {
-      await rescheduleBookingPublic(uid, slot.start_time)
+      const updated = await rescheduleBookingPublic(uid, slot.start_time)
       toast.success('Booking rescheduled!')
-      navigate(`/booking/${uid}`)
+      // Navigate to the (possibly same) uid — in-place update keeps uid stable
+      window.location.href = `/booking/${updated.uid}`
     } catch (err) {
       toast.error(err.message)
     } finally {
