@@ -87,6 +87,7 @@ class AvailabilityScheduleResponse(BaseModel):
     timezone: str
     is_default: bool
     rules: list[AvailabilityRuleResponse] = []
+    overrides: list["DateOverrideResponse"] = []
     created_at: datetime
     updated_at: datetime
 

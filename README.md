@@ -1,4 +1,4 @@
-# Scalar Cal — Scheduling Platform (Cal.com Clone)
+# Chroniq — Scheduling Platform (Cal.com Clone)
 
 A full-featured scheduling/booking web application that closely replicates [Cal.com](https://cal.com)'s design and user experience. Built with **FastAPI** (Python) + **React** (Vite) + **PostgreSQL**.
 
@@ -12,12 +12,14 @@ A full-featured scheduling/booking web application that closely replicates [Cal.
 ## 🚀 Features
 
 ### Core Features
+
 - **Event Types Management** — Create, edit, delete event types with custom durations, URL slugs, colors, and locations
 - **Availability Settings** — Set weekly schedules, timezone support, date overrides (block days or set custom hours)
 - **Public Booking Page** — Calendar date picker → time slot selection → booking form → confirmation
 - **Bookings Dashboard** — View upcoming/past/cancelled bookings, cancel or reschedule
 
 ### Bonus Features
+
 - ✅ Responsive design (mobile, tablet, desktop)
 - ✅ Date overrides (block specific dates or set different hours)
 - ✅ Rescheduling flow for existing bookings
@@ -31,13 +33,13 @@ A full-featured scheduling/booking web application that closely replicates [Cal.
 
 ## 🏗️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
+| Layer    | Technology                                                      |
+| -------- | --------------------------------------------------------------- |
 | Frontend | React 18, Vite 5, React Router 6, Axios, date-fns, lucide-react |
-| Backend | FastAPI 0.115, SQLAlchemy 2 (async), Pydantic v2, Alembic |
-| Database | PostgreSQL 15+ with asyncpg driver |
-| Email | aiosmtplib + Jinja2 HTML templates (Gmail SMTP) |
-| Styling | Vanilla CSS (Cal.com design system) |
+| Backend  | FastAPI 0.115, SQLAlchemy 2 (async), Pydantic v2, Alembic       |
+| Database | PostgreSQL 15+ with asyncpg driver                              |
+| Email    | aiosmtplib + Jinja2 HTML templates (Gmail SMTP)                 |
+| Styling  | Vanilla CSS (Cal.com design system)                             |
 
 ---
 
@@ -68,16 +70,17 @@ A full-featured scheduling/booking web application that closely replicates [Cal.
 
 ### Tables
 
-| Table | Description |
-|-------|-------------|
-| `users` | User profiles (default user: John Doe) |
-| `event_types` | Scheduling event configurations |
-| `availability_schedules` | Named availability schedules per user |
-| `availability_rules` | Weekly time rules (day + time range) |
-| `date_overrides` | Per-date availability exceptions |
-| `bookings` | Booked appointments with status tracking |
+| Table                    | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `users`                  | User profiles (default user: John Doe)   |
+| `event_types`            | Scheduling event configurations          |
+| `availability_schedules` | Named availability schedules per user    |
+| `availability_rules`     | Weekly time rules (day + time range)     |
+| `date_overrides`         | Per-date availability exceptions         |
+| `bookings`               | Booked appointments with status tracking |
 
 ### Key Design Decisions
+
 - All timestamps stored as **UTC** (`timestamptz`) — converted to user timezone at API boundary
 - Booking UIDs use **UUID v4** (never exposed auto-increment IDs publicly)
 - Custom booking questions stored as **JSONB** for flexibility
@@ -89,6 +92,7 @@ A full-featured scheduling/booking web application that closely replicates [Cal.
 ## 🛠️ Setup Instructions
 
 ### Prerequisites
+
 - **Python** 3.11+ (with pip)
 - **Node.js** 18+ (with npm)
 - **PostgreSQL** 15+ (pgAdmin or CLI)
@@ -154,13 +158,13 @@ npm run dev
 
 ### 5. Access the Application
 
-| Page | URL |
-|------|-----|
-| Dashboard | http://localhost:5173/event-types |
-| Bookings | http://localhost:5173/bookings |
-| Availability | http://localhost:5173/availability |
-| Public Booking | http://localhost:5173/john/30min |
-| API Docs | http://localhost:8000/docs |
+| Page           | URL                                |
+| -------------- | ---------------------------------- |
+| Dashboard      | http://localhost:5173/event-types  |
+| Bookings       | http://localhost:5173/bookings     |
+| Availability   | http://localhost:5173/availability |
+| Public Booking | http://localhost:5173/john/30min   |
+| API Docs       | http://localhost:8000/docs         |
 
 ---
 
@@ -186,42 +190,42 @@ SMTP_PASSWORD=xxxx xxxx xxxx xxxx
 
 ### Admin Endpoints (assume default user)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/event-types` | List all event types |
-| POST | `/api/event-types` | Create event type |
-| PUT | `/api/event-types/{id}` | Update event type |
-| DELETE | `/api/event-types/{id}` | Delete event type |
-| PATCH | `/api/event-types/{id}/toggle` | Toggle active status |
-| GET | `/api/availability/schedules` | List availability schedules |
-| POST | `/api/availability/schedules` | Create schedule |
-| PUT | `/api/availability/schedules/{id}` | Update schedule |
-| GET | `/api/bookings?status=upcoming` | List bookings |
-| PATCH | `/api/bookings/{uid}/cancel` | Cancel booking |
+| Method | Endpoint                           | Description                 |
+| ------ | ---------------------------------- | --------------------------- |
+| GET    | `/api/event-types`                 | List all event types        |
+| POST   | `/api/event-types`                 | Create event type           |
+| PUT    | `/api/event-types/{id}`            | Update event type           |
+| DELETE | `/api/event-types/{id}`            | Delete event type           |
+| PATCH  | `/api/event-types/{id}/toggle`     | Toggle active status        |
+| GET    | `/api/availability/schedules`      | List availability schedules |
+| POST   | `/api/availability/schedules`      | Create schedule             |
+| PUT    | `/api/availability/schedules/{id}` | Update schedule             |
+| GET    | `/api/bookings?status=upcoming`    | List bookings               |
+| PATCH  | `/api/bookings/{uid}/cancel`       | Cancel booking              |
 
 ### Public Endpoints (no auth)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/public/{username}/{slug}` | Event type info |
-| GET | `/api/public/{username}/{slug}/slots?date=&timezone=` | Available slots |
-| POST | `/api/public/{username}/{slug}/book` | Create booking |
-| GET | `/api/public/booking/{uid}` | Booking details |
-| POST | `/api/public/booking/{uid}/cancel` | Cancel booking |
+| Method | Endpoint                                              | Description     |
+| ------ | ----------------------------------------------------- | --------------- |
+| GET    | `/api/public/{username}/{slug}`                       | Event type info |
+| GET    | `/api/public/{username}/{slug}/slots?date=&timezone=` | Available slots |
+| POST   | `/api/public/{username}/{slug}/book`                  | Create booking  |
+| GET    | `/api/public/booking/{uid}`                           | Booking details |
+| POST   | `/api/public/booking/{uid}/cancel`                    | Cancel booking  |
 
 ---
 
 ## 🔐 Edge Cases & Error Handling
 
-| Scenario | Solution |
-|----------|----------|
-| Double booking | `SELECT FOR UPDATE` + unique constraint |
-| Past time booking | Server-side validation: `start > now + min_notice` |
-| DST transitions | IANA timezone database via `zoneinfo` |
-| Buffer overlap | Buffer windows included in conflict query |
-| Invalid slugs | Regex validation + unique constraint |
-| Email failure | Background task with retry, never blocks booking |
-| Concurrent updates | Optimistic locking with `updated_at` |
+| Scenario           | Solution                                           |
+| ------------------ | -------------------------------------------------- |
+| Double booking     | `SELECT FOR UPDATE` + unique constraint            |
+| Past time booking  | Server-side validation: `start > now + min_notice` |
+| DST transitions    | IANA timezone database via `zoneinfo`              |
+| Buffer overlap     | Buffer windows included in conflict query          |
+| Invalid slugs      | Regex validation + unique constraint               |
+| Email failure      | Background task with retry, never blocks booking   |
+| Concurrent updates | Optimistic locking with `updated_at`               |
 
 ---
 
@@ -258,6 +262,7 @@ Scalar/
 ## 🚀 Deployment
 
 ### Backend (Render)
+
 1. Create a new Web Service on [Render](https://render.com)
 2. Connect your GitHub repository
 3. Set build command: `pip install -r requirements.txt`
@@ -265,6 +270,7 @@ Scalar/
 5. Add environment variables from `.env`
 
 ### Frontend (Vercel)
+
 1. Import project on [Vercel](https://vercel.com)
 2. Set root directory: `frontend`
 3. Framework preset: Vite
