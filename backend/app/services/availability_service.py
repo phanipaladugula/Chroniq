@@ -67,7 +67,10 @@ async def get_schedules(db: AsyncSession, user_id: int) -> Sequence[Availability
     result = await db.execute(
         select(AvailabilitySchedule)
         .where(AvailabilitySchedule.user_id == user_id)
-        .options(selectinload(AvailabilitySchedule.rules))
+        .options(
+            selectinload(AvailabilitySchedule.rules),
+            selectinload(AvailabilitySchedule.overrides),
+        )
         .order_by(AvailabilitySchedule.created_at.desc())
     )
     return result.scalars().all()

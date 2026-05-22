@@ -291,7 +291,7 @@ function ScheduleEditor({ schedule, onUpdated, onSetDefault }) {
                   </div>
                 </div>
               ) : (
-                <span style={{ fontSize: 12px, color: 'var(--cal-text-muted)', paddingTop: 5 }}>Unavailable</span>
+                <span style={{ fontSize: 12, color: 'var(--cal-text-muted)', paddingTop: 5 }}>Unavailable</span>
               )}
             </div>
           )
