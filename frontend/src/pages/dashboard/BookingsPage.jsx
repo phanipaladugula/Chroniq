@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Calendar, X, RefreshCw, ChevronLeft, ChevronRight, Bell, Send, Clock, ExternalLink } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Calendar, X, RefreshCw, ChevronLeft, ChevronRight, Bell, Send, Clock, ExternalLink, Search, Filter, SlidersHorizontal } from 'lucide-react'
 import toast from 'react-hot-toast'
 import * as api from '../../api/bookings'
 import * as pubApi from '../../api/public'
@@ -66,7 +66,7 @@ function RescheduleModal({ booking, onRescheduled, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 700 }}>
+      <div className="modal" style={{ maxWidth: 680 }}>
         <div className="modal-header">
           <div>
             <div className="modal-title">Reschedule Booking</div>
@@ -317,7 +317,7 @@ function BookingCard({ booking, tab, onCancelled, onRescheduled }) {
           </div>
           {/* Action buttons row */}
           {isUpcomingConfirmed && (
-            <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
+            <div className="booking-card-actions">
               {/* Admin direct actions */}
               <button className="btn btn-secondary btn-sm" style={{ fontSize: 11 }} onClick={() => setShowReschedule(true)}>
                 <RefreshCw size={10} /> Reschedule
@@ -326,7 +326,7 @@ function BookingCard({ booking, tab, onCancelled, onRescheduled }) {
                 <X size={10} /> Cancel
               </button>
               {/* Request from client */}
-              <span style={{ width: 1, background: 'var(--cal-border-default)', margin: '0 3px' }} />
+              <span style={{ width: 1, background: 'var(--cal-border-default)', margin: '0 3px', alignSelf: 'stretch' }} />
               <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--cal-warning)' }} onClick={() => setShowReqReschedule(true)} title="Send email asking client to reschedule">
                 <Send size={10} /> Req. Reschedule
               </button>
@@ -370,6 +370,44 @@ function BookingSkeleton() {
   )
 }
 
+/* ─── Filter Bar ─── */
+function FilterBar({ query, onQueryChange, eventTypeFilter, onEventTypeChange, eventTypes }) {
+  return (
+    <div className="bookings-filter-bar">
+      <div className="bookings-search-wrap">
+        <Search size={13} className="bookings-search-icon" />
+        <input
+          className="bookings-search-input"
+          type="text"
+          placeholder="Search by name, email…"
+          value={query}
+          onChange={e => onQueryChange(e.target.value)}
+        />
+        {query && (
+          <button className="bookings-search-clear" onClick={() => onQueryChange('')}>
+            <X size={11} />
+          </button>
+        )}
+      </div>
+      {eventTypes.length > 1 && (
+        <div className="bookings-filter-select-wrap">
+          <SlidersHorizontal size={12} style={{ color: 'var(--cal-text-muted)' }} />
+          <select
+            className="bookings-filter-select"
+            value={eventTypeFilter}
+            onChange={e => onEventTypeChange(e.target.value)}
+          >
+            <option value="">All event types</option>
+            {eventTypes.map(et => (
+              <option key={et} value={et}>{et}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main Page ─── */
 export default function BookingsPage() {
   const [tab, setTab] = useState('upcoming')
@@ -377,6 +415,8 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true)
   const [showNotif, setShowNotif] = useState(false)
   const [recentCount, setRecentCount] = useState(0)
+  const [query, setQuery] = useState('')
+  const [eventTypeFilter, setEventTypeFilter] = useState('')
 
   const load = useCallback((status) => {
     setLoading(true)
@@ -386,7 +426,11 @@ export default function BookingsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { load(tab) }, [tab, load])
+  useEffect(() => {
+    setQuery('')
+    setEventTypeFilter('')
+    load(tab)
+  }, [tab, load])
 
   // Load recent count for notification badge
   useEffect(() => {
@@ -396,10 +440,43 @@ export default function BookingsPage() {
   }, [])
 
   const handleCancelled = (uid) => { setBookings(prev => prev.filter(b => b.uid !== uid)) }
+
   const handleRescheduled = (updated) => {
-    setBookings(prev => prev.map(b => b.uid === updated.uid ? { ...b, ...updated } : b))
-    toast.success('Booking rescheduled')
+    setBookings(prev => {
+      const next = prev.map(b => b.uid === updated.uid ? { ...b, ...updated } : b)
+      // Re-sort: upcoming → asc, past/cancelled → desc
+      const isUpcoming = tab === 'upcoming'
+      next.sort((a, b) => {
+        const ta = new Date(a.start_time).getTime()
+        const tb = new Date(b.start_time).getTime()
+        return isUpcoming ? ta - tb : tb - ta
+      })
+      return next
+    })
   }
+
+  // Derive unique event types for filter dropdown
+  const eventTypes = useMemo(() => {
+    const titles = bookings.map(b => b.event_type?.title).filter(Boolean)
+    return [...new Set(titles)]
+  }, [bookings])
+
+  // Filtered bookings
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    return bookings.filter(b => {
+      const matchQuery = !q || (
+        b.booker_name?.toLowerCase().includes(q) ||
+        b.booker_email?.toLowerCase().includes(q) ||
+        b.event_type?.title?.toLowerCase().includes(q)
+      )
+      const matchEventType = !eventTypeFilter || b.event_type?.title === eventTypeFilter
+      return matchQuery && matchEventType
+    })
+  }, [bookings, query, eventTypeFilter])
+
+  const hasFilters = query || eventTypeFilter
+  const showFilterBar = !loading && bookings.length > 0
 
   return (
     <>
@@ -417,7 +494,7 @@ export default function BookingsPage() {
             title="Recent bookings"
           >
             <Bell size={14} />
-            Recent
+            <span className="btn-label-hide-xs">Recent</span>
             {recentCount > 0 && (
               <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--cal-success)', color: '#111', width: 16, height: 16, borderRadius: '50%', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {recentCount}
@@ -439,19 +516,41 @@ export default function BookingsPage() {
         ))}
       </div>
 
+      {/* Filter bar */}
+      {showFilterBar && (
+        <FilterBar
+          query={query}
+          onQueryChange={setQuery}
+          eventTypeFilter={eventTypeFilter}
+          onEventTypeChange={setEventTypeFilter}
+          eventTypes={eventTypes}
+        />
+      )}
+
       <div className="card" style={{ overflow: 'hidden' }}>
         {loading ? (
           <>{[1,2,3].map(i => <BookingSkeleton key={i} />)}</>
-        ) : bookings.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon"><Calendar size={20} /></div>
-            <div className="empty-state-title">No {tab} bookings</div>
-            <div className="empty-state-desc">
-              {tab === 'upcoming' ? 'Share your booking link to get started.' : `No ${tab} bookings to display.`}
+            <div className="empty-state-icon">
+              {hasFilters ? <Search size={20} /> : <Calendar size={20} />}
             </div>
+            <div className="empty-state-title">
+              {hasFilters ? 'No matches found' : `No ${tab} bookings`}
+            </div>
+            <div className="empty-state-desc">
+              {hasFilters
+                ? 'Try adjusting your search or filter.'
+                : tab === 'upcoming' ? 'Share your booking link to get started.' : `No ${tab} bookings to display.`}
+            </div>
+            {hasFilters && (
+              <button className="btn btn-secondary btn-sm" onClick={() => { setQuery(''); setEventTypeFilter('') }}>
+                <X size={12} /> Clear filters
+              </button>
+            )}
           </div>
         ) : (
-          bookings.map(b => (
+          filtered.map(b => (
             <BookingCard key={b.id} booking={b} tab={tab}
               onCancelled={handleCancelled} onRescheduled={handleRescheduled} />
           ))

@@ -98,49 +98,51 @@ export default function ReschedulePage() {
 
   return (
     <div className="booking-page-bg">
-      <div className="booking-page-card" style={{ flexDirection: 'column', maxWidth: 680 }}>
+      <div className="booking-page-card" style={{ flexDirection: 'column', maxWidth: 700 }}>
         <div style={{ padding: '28px 28px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 32, height: 32, background: 'var(--cal-bg-muted)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 36, height: 36, background: 'var(--cal-bg-muted)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--cal-border-default)' }}>
               <RefreshCw size={16} style={{ color: 'var(--cal-text-subtle)' }} />
             </div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Reschedule Meeting</div>
+              <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.3px' }}>Reschedule Meeting</div>
               <div style={{ fontSize: 13, color: 'var(--cal-text-subtle)' }}>{booking?.event_type?.title}</div>
             </div>
           </div>
           <div className="divider" />
         </div>
-        <div style={{ padding: '24px 28px', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 260 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Select a new date</div>
-            <Calendar selectedDate={selectedDate} onSelect={setSelectedDate} minDate={today} maxDate={maxDate} />
-          </div>
-          {selectedDate && (
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </div>
-              {slotsLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 38 }} />)}
-                </div>
-              ) : slots.length === 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--cal-text-muted)' }}>No available slots</p>
-              ) : (
-                <div className="time-slots-list">
-                  {slots.map((slot, i) => (
-                    <button key={i} className="time-slot-btn" onClick={() => handleReschedule(slot)} disabled={rescheduling}>
-                      {rescheduling ? <span className="btn-spinner" style={{ display: 'inline-block', marginRight: 6 }} /> : null}
-                      {formatSlot(slot.start_time, tz)}
-                    </button>
-                  ))}
-                </div>
-              )}
+        <div style={{ padding: '24px 28px' }}>
+          <div className="booking-calendar-layout">
+            <div className="booking-calendar-col">
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--cal-text-default)' }}>Select a new date</div>
+              <Calendar selectedDate={selectedDate} onSelect={setSelectedDate} minDate={today} maxDate={maxDate} />
             </div>
-          )}
+            {selectedDate && (
+              <div className="booking-slots-col">
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--cal-text-default)' }}>
+                  {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </div>
+                {slotsLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 38 }} />)}
+                  </div>
+                ) : slots.length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--cal-text-muted)' }}>No available slots</p>
+                ) : (
+                  <div className="time-slots-list">
+                    {slots.map((slot, i) => (
+                      <button key={i} className="time-slot-btn" onClick={() => handleReschedule(slot)} disabled={rescheduling}>
+                        {rescheduling ? <span className="btn-spinner" style={{ display: 'inline-block', marginRight: 6 }} /> : null}
+                        {formatSlot(slot.start_time, tz)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div style={{ padding: '0 28px 24px' }}>
+        <div style={{ padding: '0 28px 28px' }}>
           <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)}>← Back</button>
         </div>
       </div>

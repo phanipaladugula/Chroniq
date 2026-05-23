@@ -248,7 +248,7 @@ export default function BookingPage() {
           <div className="booking-event-title">{eventType.title}</div>
           <div className="booking-meta">
             <div className="booking-meta-item">
-              <Clock size={14} style={{ color: 'var(--cal-text-muted)' }} />
+              <Clock size={14} style={{ color: 'var(--cal-text-muted)', flexShrink: 0 }} />
               <span>{eventType.duration_minutes} minutes</span>
             </div>
             <LocationLabel type={eventType.location_type} value={eventType.location_value} />
@@ -258,7 +258,7 @@ export default function BookingPage() {
           )}
           <div className="divider" />
           <div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--cal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--cal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>
               Timezone
             </div>
             <select className="form-select" value={timezone} onChange={e => { setTimezone(e.target.value); setSlots([]); setSelectedDate(null) }} style={{ fontSize: 11.5 }}>
@@ -278,9 +278,9 @@ export default function BookingPage() {
               onBooked={handleBooked}
             />
           ) : (
-            <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 256 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14 }}>Select a date</div>
+            <div className="booking-calendar-layout">
+              <div className="booking-calendar-col">
+                <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 16, color: 'var(--cal-text-default)', letterSpacing: '-0.2px' }}>Select a date</div>
                 <Calendar
                   selectedDate={selectedDate}
                   onSelect={(d) => { setSelectedDate(d); setSelectedSlot(null) }}
@@ -289,7 +289,7 @@ export default function BookingPage() {
                 />
               </div>
               {selectedDate && (
-                <div style={{ flex: 1, minWidth: 150 }}>
+                <div className="booking-slots-col">
                   <div className="time-slots-header">
                     {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric' })}
                   </div>

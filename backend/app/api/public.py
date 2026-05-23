@@ -64,15 +64,15 @@ async def cancel_booking_public(
     db: AsyncSession = Depends(get_db),
 ):
     """Cancel a booking from the booker side."""
-    old_booking = await booking_service.get_booking_by_uid(db, uid)
-    et = old_booking.event_type
-    host = et.user if hasattr(et, 'user') and et else None
-
     booking = await booking_service.cancel_booking(db, uid, data.reason)
     await db.commit()
 
-    background_tasks.add_task(email_service.send_booking_cancellation, booking, et, host)
-    return booking
+    full_booking = await _load_booking_full(db, booking.id)
+    et = full_booking.event_type
+    host = et.user if et else None
+
+    background_tasks.add_task(email_service.send_booking_cancellation, full_booking, et, host)
+    return full_booking
 
 
 @router.post("/booking/{uid}/reschedule", response_model=BookingResponse)

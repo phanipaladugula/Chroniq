@@ -19,11 +19,11 @@ function App() {
         <Route path="availability" element={<AvailabilityPage />} />
       </Route>
 
-      {/* Public booking pages */}
-      <Route path="/:username/:slug" element={<BookingPage />} />
-      <Route path="/booking/:uid" element={<ConfirmationPage />} />
+      {/* Public booking pages — specific /booking/* routes MUST come before /:username/:slug */}
       <Route path="/booking/:uid/cancel" element={<CancelPage />} />
       <Route path="/booking/:uid/reschedule" element={<ReschedulePage />} />
+      <Route path="/booking/:uid" element={<ConfirmationPage />} />
+      <Route path="/:username/:slug" element={<BookingPage />} />
     </Routes>
   )
 }
