@@ -1,9 +1,8 @@
 """Pydantic schemas for EventType."""
 
-from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 
 class EventTypeCreate(BaseModel):
@@ -131,7 +130,7 @@ class EventTypeResponse(BaseModel):
     max_advance_days: int
     custom_questions: list = []
     schedule_id: Optional[int] = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
     model_config = {"from_attributes": True}

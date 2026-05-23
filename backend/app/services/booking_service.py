@@ -56,10 +56,10 @@ async def create_booking(
             detail="This event type is not currently active.",
         )
 
-    # Ensure start_time is timezone-aware
-    start_time = data.start_time
-    if start_time.tzinfo is None:
-        start_time = start_time.replace(tzinfo=timezone.utc)
+    # Pydantic ensures start_time is an AwareDatetime. Convert to UTC.
+    start_time = data.start_time.astimezone(timezone.utc)
+    
+    logger.debug("Received booking request. Timezone context: incoming_tz=%s, start_time_utc=%s", data.booker_timezone, start_time.isoformat())
 
     # Validate min_notice
     now_utc = datetime.now(timezone.utc)
@@ -131,8 +131,8 @@ async def create_booking(
     await db.flush()
 
     logger.info(
-        "Created booking uid=%s for event type %d at %s",
-        booking.uid, event_type_id, start_time.isoformat(),
+        "Created booking uid=%s for event type %d. Timezone context: incoming_tz=%s, start_time_utc=%s",
+        booking.uid, event_type_id, data.booker_timezone, start_time.isoformat(),
     )
     return booking
 
@@ -293,9 +293,9 @@ async def reschedule_booking(
             detail="Event type not found for this booking.",
         )
 
-    # Ensure new_start_time is tz-aware
-    if new_start_time.tzinfo is None:
-        new_start_time = new_start_time.replace(tzinfo=timezone.utc)
+    # Ensure new_start_time is in UTC.
+    new_start_time = new_start_time.astimezone(timezone.utc)
+    logger.debug("Rescheduling booking uid=%s. Timezone context: new_start_time_utc=%s", uid, new_start_time.isoformat())
 
     now_utc = datetime.now(timezone.utc)
 

@@ -103,7 +103,7 @@ function AddOverrideModal({ scheduleId, onSaved, onClose }) {
 /* ─── Create Schedule Modal ─── */
 function CreateScheduleModal({ onCreated, onClose }) {
   const [name, setName] = useState('Working Hours')
-  const [timezone, setTimezone] = useState('Asia/Kolkata')
+  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
   const [loading, setLoading] = useState(false)
 
   const handle = async (e) => {

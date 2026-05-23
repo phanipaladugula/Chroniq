@@ -65,10 +65,11 @@ class EmailService:
     def _fmt_dt(self, dt, tz_str: str) -> str:
         """Format a datetime for display in a given timezone."""
         try:
-            from zoneinfo import ZoneInfo
-            local = dt.astimezone(ZoneInfo(tz_str))
+            from app.tz_utils import get_tz_info
+            local = dt.astimezone(get_tz_info(tz_str))
             return local.strftime("%A, %B %d, %Y at %I:%M %p %Z")
-        except Exception:
+        except Exception as e:
+            logger.warning("Error formatting datetime %s for timezone %s: %s", dt, tz_str, e)
             return str(dt)
 
     def _base_ctx(self) -> dict:

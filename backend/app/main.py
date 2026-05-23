@@ -20,11 +20,21 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables on startup."""
+    """Create database tables on startup with retry logic."""
+    import asyncio
     logger.info("Starting Scalar Cal API...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables ready.")
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database tables ready.")
+            break
+        except Exception as e:
+            logger.warning("Database connection failed (attempt %d/%d): %s", attempt + 1, max_retries, e)
+            if attempt == max_retries - 1:
+                raise
+            await asyncio.sleep(2)
     yield
     logger.info("Shutting down...")
 

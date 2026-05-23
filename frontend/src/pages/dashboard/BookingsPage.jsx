@@ -285,7 +285,7 @@ function BookingCard({ booking, tab, onCancelled, onRescheduled }) {
   const [showReschedule, setShowReschedule] = useState(false)
   const [showReqReschedule, setShowReqReschedule] = useState(false)
   const [showReqCancel, setShowReqCancel] = useState(false)
-  const tz = booking.booker_timezone || 'Asia/Kolkata'
+  const tz = booking.booker_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
   const start = new Date(booking.start_time)
   const isUpcomingConfirmed = tab === 'upcoming' && booking.status === 'confirmed'
 
@@ -294,10 +294,18 @@ function BookingCard({ booking, tab, onCancelled, onRescheduled }) {
       <div className="booking-card">
         {/* Time */}
         <div className="booking-time">
-          <div className="booking-time-main">{formatTime(booking.start_time)}</div>
+          <div className="booking-time-main">
+            {start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' })}
+          </div>
           <div className="booking-time-relative" style={{ marginTop: 2 }}>
             {start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
+          {/* Booker's timezone badge */}
+          {booking.booker_timezone && (
+            <div style={{ marginTop: 6, fontSize: 10, color: 'var(--cal-text-muted)', background: 'var(--cal-bg-muted)', padding: '2px 6px', borderRadius: 4, display: 'inline-block' }}>
+              Booked as: {start.toLocaleTimeString('en-US', { timeZone: booking.booker_timezone, hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' })}
+            </div>
+          )}
           <div className="booking-time-relative" style={{ marginTop: 2, color: 'var(--cal-info)', fontWeight: 500 }}>
             {getRelativeTime(booking.start_time)}
           </div>

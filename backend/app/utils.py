@@ -3,6 +3,7 @@
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from app.tz_utils import get_tz_info
 
 
 def slugify(text: str) -> str:
@@ -51,8 +52,8 @@ def format_datetime_for_display(dt: datetime, tz_name: str) -> str:
         Formatted string like 'Friday, May 23, 2026 at 2:30 PM IST'.
     """
     try:
-        tz = ZoneInfo(tz_name)
-    except (KeyError, Exception):
+        tz = get_tz_info(tz_name)
+    except Exception:
         tz = ZoneInfo("UTC")
 
     local_dt = dt.astimezone(tz)
@@ -70,8 +71,8 @@ def format_time_for_display(dt: datetime, tz_name: str) -> str:
         Formatted string like '2:30 PM'.
     """
     try:
-        tz = ZoneInfo(tz_name)
-    except (KeyError, Exception):
+        tz = get_tz_info(tz_name)
+    except Exception:
         tz = ZoneInfo("UTC")
 
     local_dt = dt.astimezone(tz)

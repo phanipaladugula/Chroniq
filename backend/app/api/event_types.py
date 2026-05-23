@@ -24,13 +24,13 @@ router = APIRouter(prefix="/event-types", tags=["Event Types"])
 DEFAULT_USER_ID = 1
 
 
-@router.get("/", response_model=List[EventTypeResponse])
+@router.get("", response_model=List[EventTypeResponse])
 async def list_event_types(db: AsyncSession = Depends(get_db)):
     """List all event types for the default user."""
     return await event_type_service.get_event_types(db, DEFAULT_USER_ID)
 
 
-@router.post("/", response_model=EventTypeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=EventTypeResponse, status_code=status.HTTP_201_CREATED)
 async def create_event_type(
     data: EventTypeCreate, db: AsyncSession = Depends(get_db)
 ):

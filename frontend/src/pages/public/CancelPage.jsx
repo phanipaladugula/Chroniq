@@ -43,7 +43,7 @@ export default function CancelPage() {
     </div>
   )
 
-  const tz = booking?.booker_timezone || 'Asia/Kolkata'
+  const tz = booking?.booker_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
 
   return (
     <div className="confirmation-page">

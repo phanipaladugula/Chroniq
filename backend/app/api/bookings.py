@@ -36,7 +36,7 @@ async def _reload_booking(db: AsyncSession, booking_id: int) -> Booking:
     return result.scalar_one()
 
 
-@router.get("/", response_model=List[BookingResponse])
+@router.get("", response_model=List[BookingResponse])
 async def list_bookings(
     status: Optional[str] = Query(None, description="Filter: upcoming | past | cancelled"),
     page: int = Query(1, ge=1),

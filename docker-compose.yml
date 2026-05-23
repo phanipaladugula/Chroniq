@@ -41,6 +41,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      TZ: UTC
       DATABASE_URL:      postgresql+asyncpg://${POSTGRES_USER:-chroniq}:${POSTGRES_PASSWORD:-chroniqsecret}@postgres:5432/${POSTGRES_DB:-chroniq}
       SMTP_HOST:         ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT:         ${SMTP_PORT:-587}
@@ -54,9 +55,9 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
       - chroniq_net
-    # Seed default user + event types on first run
+    # Start uvicorn with proxy headers enabled
     command: >
-      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips='*'"
 
   # ── React frontend served via nginx ────────────────────────────────────────
   frontend:

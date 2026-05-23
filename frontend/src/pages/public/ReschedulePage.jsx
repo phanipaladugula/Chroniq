@@ -94,7 +94,7 @@ export default function ReschedulePage() {
     </div>
   )
 
-  const tz = booking?.booker_timezone || 'Asia/Kolkata'
+  const tz = booking?.booker_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
 
   return (
     <div className="booking-page-bg">

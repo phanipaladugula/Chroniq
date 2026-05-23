@@ -32,8 +32,7 @@ export const DAYS_OF_WEEK = [
 ]
 
 export const TIMEZONE_OPTIONS = [
-  'Asia/Kolkata', 'Asia/Kolkata',
-  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'Asia/Kolkata', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
   'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
   'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Dubai',
   'Australia/Sydney', 'Pacific/Auckland', 'America/Sao_Paulo',

@@ -1,9 +1,11 @@
 """Pydantic schemas for Availability schedules, rules, and date overrides."""
 
-from datetime import date, datetime, time
+from datetime import date, time
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
+
+from app.tz_utils import normalize_timezone
 
 
 class AvailabilityRuleCreate(BaseModel):
@@ -46,12 +48,7 @@ class AvailabilityScheduleCreate(BaseModel):
     @field_validator("timezone")
     @classmethod
     def validate_timezone(cls, v: str) -> str:
-        import zoneinfo
-        try:
-            zoneinfo.ZoneInfo(v)
-        except (KeyError, Exception):
-            raise ValueError(f"Invalid timezone: {v}")
-        return v
+        return normalize_timezone(v)
 
     model_config = {"from_attributes": True}
 
@@ -68,12 +65,7 @@ class AvailabilityScheduleUpdate(BaseModel):
     def validate_timezone(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        import zoneinfo
-        try:
-            zoneinfo.ZoneInfo(v)
-        except (KeyError, Exception):
-            raise ValueError(f"Invalid timezone: {v}")
-        return v
+        return normalize_timezone(v)
 
     model_config = {"from_attributes": True}
 
@@ -88,8 +80,8 @@ class AvailabilityScheduleResponse(BaseModel):
     is_default: bool
     rules: list[AvailabilityRuleResponse] = []
     overrides: list["DateOverrideResponse"] = []
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
     model_config = {"from_attributes": True}
 

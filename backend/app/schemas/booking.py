@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, EmailStr, Field, field_validator
 
 from app.schemas.event_type import EventTypeResponse
+from app.tz_utils import normalize_timezone
 
 
 class BookingCreate(BaseModel):
@@ -15,9 +16,14 @@ class BookingCreate(BaseModel):
     booker_name: str = Field(..., min_length=1, max_length=200)
     booker_email: EmailStr
     booker_timezone: str = Field(..., min_length=1, max_length=50)
-    start_time: datetime
+    start_time: AwareDatetime
     custom_responses: dict = Field(default_factory=dict)
     notes: Optional[str] = None
+
+    @field_validator("booker_timezone")
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        return normalize_timezone(v)
 
     model_config = {"from_attributes": True}
 
@@ -31,15 +37,15 @@ class BookingResponse(BaseModel):
     booker_name: str
     booker_email: str
     booker_timezone: str
-    start_time: datetime
-    end_time: datetime
+    start_time: AwareDatetime
+    end_time: AwareDatetime
     status: str
     cancellation_reason: Optional[str] = None
     custom_responses: dict = {}
     meeting_url: Optional[str] = None
     notes: Optional[str] = None
     event_type: Optional[EventTypeResponse] = None
-    created_at: datetime
+    created_at: AwareDatetime
 
     model_config = {"from_attributes": True}
 
@@ -53,14 +59,14 @@ class BookingCancel(BaseModel):
 class BookingReschedule(BaseModel):
     """Schema for rescheduling a booking."""
 
-    new_start_time: datetime
+    new_start_time: AwareDatetime
 
 
 class AvailableSlot(BaseModel):
     """A single available time slot."""
 
-    start_time: datetime
-    end_time: datetime
+    start_time: AwareDatetime
+    end_time: AwareDatetime
 
 
 class AvailableSlotsResponse(BaseModel):
@@ -69,6 +75,11 @@ class AvailableSlotsResponse(BaseModel):
     date: str
     timezone: str
     slots: list[AvailableSlot] = []
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        return normalize_timezone(v)
 
 
 class PublicEventTypeResponse(BaseModel):

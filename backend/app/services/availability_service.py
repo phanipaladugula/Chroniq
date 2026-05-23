@@ -5,6 +5,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Sequence
 from zoneinfo import ZoneInfo
 
+from app.tz_utils import get_tz_info
+
 from fastapi import HTTPException, status
 from sqlalchemy import select, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -241,11 +243,11 @@ async def get_available_slots(
         10. Return sorted slots.
     """
     try:
-        req_tz = ZoneInfo(requester_timezone)
-    except (KeyError, Exception):
+        req_tz = get_tz_info(requester_timezone)
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid timezone: {requester_timezone}",
+            detail=str(e),
         )
 
     # 1. Load event type with schedule
@@ -290,7 +292,7 @@ async def get_available_slots(
         logger.warning("No schedule found for event type %d", event_type_id)
         return []
 
-    schedule_tz = ZoneInfo(schedule.timezone)
+    schedule_tz = get_tz_info(schedule.timezone)
 
     # 2. Check date overrides
     override = None
@@ -396,12 +398,9 @@ async def get_available_slots(
         # i.e., the slot falls within the booking's buffered exclusion zone.
         has_conflict = False
         for bk in existing_bookings:
-            bk_start = bk.start_time
-            bk_end = bk.end_time
-            if bk_start.tzinfo is None:
-                bk_start = bk_start.replace(tzinfo=timezone.utc)
-            if bk_end.tzinfo is None:
-                bk_end = bk_end.replace(tzinfo=timezone.utc)
+            # existing bookings come from DB which is aware, ensure they are in UTC
+            bk_start = bk.start_time.astimezone(timezone.utc)
+            bk_end = bk.end_time.astimezone(timezone.utc)
 
             # Get the buffers for the existing booking's event type
             # (could be a different event type with different buffers)

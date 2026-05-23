@@ -42,7 +42,7 @@ export default function ConfirmationPage() {
     </div>
   )
 
-  const tz = booking.booker_timezone || 'Asia/Kolkata'
+  const tz = booking?.booker_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
   const isCancelled = booking.status === 'cancelled'
 
   return (
