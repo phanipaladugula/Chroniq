@@ -13,7 +13,8 @@ from sqlalchemy.orm import selectinload
 from app.models.booking import Booking
 from app.models.event_type import EventType
 from app.models.user import User
-from app.schemas.booking import BookingCreate
+from app.schemas.booking import BookingCancel, BookingCreate
+from app.utils.conflicts import booking_conflicts
 from app.utils import generate_meeting_url
 
 logger = logging.getLogger(__name__)
@@ -83,35 +84,42 @@ async def create_booking(
     end_time = start_time + duration
 
     # 3. Check conflicts across ALL event types for this user (host double-booking prevention)
-    #    Buffer windows: buffered_start = start - buffer_before, buffered_end = end + buffer_after
-    buffer_before = timedelta(minutes=event_type.buffer_before)
-    buffer_after = timedelta(minutes=event_type.buffer_after)
-    # The new slot occupies [start, end]. For it to be free:
-    # No existing booking's [existing_start - buffer_after, existing_end + buffer_before]
-    # should overlap with [start, end].
-    # Equivalently: existing_start < end + buffer_after AND existing_end > start - buffer_before
+    buffer_before = event_type.buffer_before
+    buffer_after = event_type.buffer_after
+    
+    candidate_effective_start = start_time - timedelta(minutes=buffer_before)
+    candidate_effective_end = end_time + timedelta(minutes=buffer_after)
 
     all_event_types_result = await db.execute(
         select(EventType.id).where(EventType.user_id == event_type.user_id)
     )
     user_event_type_ids = [row[0] for row in all_event_types_result.all()]
 
+    # Prefilter bookings that might overlap based on effective start and end
     conflict_result = await db.execute(
-        select(Booking).where(
+        select(Booking)
+        .options(selectinload(Booking.event_type))
+        .where(
             Booking.event_type_id.in_(user_event_type_ids),
             Booking.status == "confirmed",
-            # existing booking's buffer window overlaps with new slot
-            Booking.start_time < end_time + buffer_after,
-            Booking.end_time > start_time - buffer_before,
+            Booking.start_time < candidate_effective_end,
+            Booking.end_time > candidate_effective_start,
         )
     )
-    existing = conflict_result.scalar_one_or_none()
-
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This time slot conflicts with an existing booking (including buffer times). Please choose another time.",
-        )
+    possible_conflicts = conflict_result.scalars().all()
+    
+    for existing in possible_conflicts:
+        if booking_conflicts(
+            candidate_start=start_time,
+            candidate_end=end_time,
+            candidate_buffer_before=buffer_before,
+            candidate_buffer_after=buffer_after,
+            existing_booking=existing,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This time slot conflicts with an existing booking (including buffer times). Please choose another time.",
+            )
 
     # 5. Create booking
     booking = Booking(
@@ -312,8 +320,11 @@ async def reschedule_booking(
     new_end_time = new_start_time + duration
 
     # Check for conflicts (excluding this booking itself)
-    buffer_before = timedelta(minutes=event_type.buffer_before)
-    buffer_after = timedelta(minutes=event_type.buffer_after)
+    buffer_before = event_type.buffer_before
+    buffer_after = event_type.buffer_after
+    
+    candidate_effective_start = new_start_time - timedelta(minutes=buffer_before)
+    candidate_effective_end = new_end_time + timedelta(minutes=buffer_after)
 
     all_event_types_result = await db.execute(
         select(EventType.id).where(EventType.user_id == event_type.user_id)
@@ -321,19 +332,30 @@ async def reschedule_booking(
     user_event_type_ids = [row[0] for row in all_event_types_result.all()]
 
     conflict_result = await db.execute(
-        select(Booking).where(
+        select(Booking)
+        .options(selectinload(Booking.event_type))
+        .where(
             Booking.id != booking.id,  # exclude self
             Booking.event_type_id.in_(user_event_type_ids),
             Booking.status == "confirmed",
-            Booking.start_time < new_end_time + buffer_after,
-            Booking.end_time > new_start_time - buffer_before,
+            Booking.start_time < candidate_effective_end,
+            Booking.end_time > candidate_effective_start,
         )
     )
-    if conflict_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="The new time conflicts with an existing booking.",
-        )
+    possible_conflicts = conflict_result.scalars().all()
+    
+    for existing in possible_conflicts:
+        if booking_conflicts(
+            candidate_start=new_start_time,
+            candidate_end=new_end_time,
+            candidate_buffer_before=buffer_before,
+            candidate_buffer_after=buffer_after,
+            existing_booking=existing,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The new time conflicts with an existing booking.",
+            )
 
     # Update in-place
     old_start = booking.start_time

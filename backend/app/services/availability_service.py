@@ -23,6 +23,7 @@ from app.schemas.availability import (
     DateOverrideCreate,
 )
 from app.schemas.booking import AvailableSlot
+from app.utils.conflicts import booking_conflicts
 
 logger = logging.getLogger(__name__)
 
@@ -360,7 +361,9 @@ async def get_available_slots(
     user_event_type_ids = [row[0] for row in all_event_types_result.all()]
 
     all_bookings_result = await db.execute(
-        select(Booking).where(
+        select(Booking)
+        .options(selectinload(Booking.event_type))
+        .where(
             Booking.event_type_id.in_(user_event_type_ids),
             Booking.status == "confirmed",
             Booking.start_time < day_end_utc,
@@ -398,20 +401,13 @@ async def get_available_slots(
         # i.e., the slot falls within the booking's buffered exclusion zone.
         has_conflict = False
         for bk in existing_bookings:
-            # existing bookings come from DB which is aware, ensure they are in UTC
-            bk_start = bk.start_time.astimezone(timezone.utc)
-            bk_end = bk.end_time.astimezone(timezone.utc)
-
-            # Get the buffers for the existing booking's event type
-            # (could be a different event type with different buffers)
-            bk_buffer_before = buffer_before  # use this event type's buffers as conservative estimate
-            bk_buffer_after = buffer_after
-
-            # Exclusion zone around existing booking: [B_start - buffer_before, B_end + buffer_after]
-            excl_start = bk_start - bk_buffer_before
-            excl_end = bk_end + bk_buffer_after
-
-            if slot_start_utc < excl_end and slot_end_utc > excl_start:
+            if booking_conflicts(
+                candidate_start=slot_start_utc,
+                candidate_end=slot_end_utc,
+                candidate_buffer_before=event_type.buffer_before,
+                candidate_buffer_after=event_type.buffer_after,
+                existing_booking=bk,
+            ):
                 has_conflict = True
                 break
 

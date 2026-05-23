@@ -1,5 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import DashboardLayout from './components/layout/DashboardLayout'
+import { EventTypesProvider } from './context/EventTypesContext'
 import EventTypesPage from './pages/dashboard/EventTypesPage'
 import BookingsPage from './pages/dashboard/BookingsPage'
 import AvailabilityPage from './pages/dashboard/AvailabilityPage'
@@ -12,7 +13,11 @@ function App() {
   return (
     <Routes>
       {/* Dashboard (admin) */}
-      <Route path="/" element={<DashboardLayout />}>
+      <Route path="/" element={
+        <EventTypesProvider>
+          <DashboardLayout />
+        </EventTypesProvider>
+      }>
         <Route index element={<Navigate to="/event-types" replace />} />
         <Route path="event-types" element={<EventTypesPage />} />
         <Route path="bookings" element={<BookingsPage />} />

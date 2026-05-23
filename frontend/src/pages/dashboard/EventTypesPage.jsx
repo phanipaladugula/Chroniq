@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import * as api from '../../api/eventTypes'
 import * as availApi from '../../api/availability'
 import { DURATIONS, LOCATION_TYPES, PRESET_COLORS } from '../../utils/constants'
+import { useEventTypes } from '../../context/EventTypesContext'
 
 /* ─── Helpers ─── */
 function slugify(str) {
@@ -390,31 +391,29 @@ function EventTypeSkeleton() {
 
 /* ─── Main Page ─── */
 export default function EventTypesPage() {
-  const [eventTypes, setEventTypes] = useState([])
+  const { eventTypes, loading: eventTypesLoading, refreshEventTypes } = useEventTypes()
   const [schedules, setSchedules] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loadingSchedules, setLoadingSchedules] = useState(true)
   const [modal, setModal] = useState(null) // null | { type: 'edit'|'delete', data }
 
   useEffect(() => {
-    Promise.all([api.getEventTypes(), availApi.getSchedules()])
-      .then(([ets, sched]) => { setEventTypes(ets); setSchedules(sched) })
-      .catch(() => toast.error('Failed to load event types'))
-      .finally(() => setLoading(false))
+    availApi.getSchedules()
+      .then((sched) => setSchedules(sched))
+      .catch(() => toast.error('Failed to load schedules'))
+      .finally(() => setLoadingSchedules(false))
   }, [])
 
   const handleSaved = (saved) => {
-    setEventTypes(prev => {
-      const idx = prev.findIndex(e => e.id === saved.id)
-      if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next }
-      return [saved, ...prev]
-    })
+    refreshEventTypes()
     setModal(null)
   }
 
   const handleDeleted = (id) => {
-    setEventTypes(prev => prev.filter(e => e.id !== id))
+    refreshEventTypes()
     setModal(null)
   }
+
+  const loading = eventTypesLoading || loadingSchedules
 
   return (
     <>

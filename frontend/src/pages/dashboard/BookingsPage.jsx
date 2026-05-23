@@ -3,6 +3,7 @@ import { Calendar, X, RefreshCw, ChevronLeft, ChevronRight, Bell, Send, Clock, E
 import toast from 'react-hot-toast'
 import * as api from '../../api/bookings'
 import * as pubApi from '../../api/public'
+import { useEventTypes } from '../../context/EventTypesContext'
 import { formatTime, getRelativeTime, generateCalendarDays, toDateString, isSameDay, MONTH_NAMES, DAY_NAMES, formatSlot } from '../../utils/dateUtils'
 
 const TABS = ['upcoming', 'past', 'cancelled']
@@ -397,7 +398,6 @@ function FilterBar({ query, onQueryChange, eventTypeFilter, onEventTypeChange, e
           </button>
         )}
       </div>
-      {eventTypes.length > 1 && (
         <div className="bookings-filter-select-wrap">
           <SlidersHorizontal size={12} style={{ color: 'var(--cal-text-muted)' }} />
           <select
@@ -407,11 +407,10 @@ function FilterBar({ query, onQueryChange, eventTypeFilter, onEventTypeChange, e
           >
             <option value="">All event types</option>
             {eventTypes.map(et => (
-              <option key={et} value={et}>{et}</option>
+              <option key={et.id} value={et.title}>{et.title}</option>
             ))}
           </select>
         </div>
-      )}
     </div>
   )
 }
@@ -425,6 +424,7 @@ export default function BookingsPage() {
   const [recentCount, setRecentCount] = useState(0)
   const [query, setQuery] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState('')
+  const { eventTypes } = useEventTypes()
 
   const load = useCallback((status) => {
     setLoading(true)
@@ -472,12 +472,6 @@ export default function BookingsPage() {
     })
     refreshRecent()
   }
-
-  // Derive unique event types for filter dropdown
-  const eventTypes = useMemo(() => {
-    const titles = bookings.map(b => b.event_type?.title).filter(Boolean)
-    return [...new Set(titles)]
-  }, [bookings])
 
   // Filtered bookings
   const filtered = useMemo(() => {
