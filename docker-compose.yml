@@ -1,0 +1,88 @@
+version: "3.9"
+
+# ── Chroniq — Docker Compose (Development + Production) ──────────────────────
+#
+# Quick start:
+#   cp .env.docker .env.docker.local   # fill in SMTP_USER / SMTP_PASSWORD
+#   docker compose --env-file .env.docker.local up --build
+#
+# The frontend (nginx) is available at http://localhost:80
+# The backend API is available at http://localhost:8000 (and via nginx at /api)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL database ─────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: chroniq_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-chroniq}
+      POSTGRES_USER:     ${POSTGRES_USER:-chroniq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chroniqsecret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chroniq} -d ${POSTGRES_DB:-chroniq}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chroniq_net
+
+  # ── FastAPI backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chroniq_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:      postgresql+asyncpg://${POSTGRES_USER:-chroniq}:${POSTGRES_PASSWORD:-chroniqsecret}@postgres:5432/${POSTGRES_DB:-chroniq}
+      SMTP_HOST:         ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT:         ${SMTP_PORT:-587}
+      SMTP_USER:         ${SMTP_USER:-}
+      SMTP_PASSWORD:     ${SMTP_PASSWORD:-}
+      SMTP_FROM_NAME:    ${SMTP_FROM_NAME:-Chroniq}
+      FRONTEND_URL:      ${FRONTEND_URL:-http://localhost}
+      DEFAULT_TIMEZONE:  ${DEFAULT_TIMEZONE:-Asia/Kolkata}
+      APP_NAME:          ${APP_NAME:-Chroniq}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - chroniq_net
+    # Seed default user + event types on first run
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+
+  # ── React frontend served via nginx ────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Empty string → nginx proxies /api, so no hardcoded backend URL in JS bundle
+        VITE_API_URL: ""
+    container_name: chroniq_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - chroniq_net
+
+# ── Named volumes ─────────────────────────────────────────────────────────────
+volumes:
+  pgdata:
+    name: chroniq_pgdata
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  chroniq_net:
+    name: chroniq_network
+    driver: bridge

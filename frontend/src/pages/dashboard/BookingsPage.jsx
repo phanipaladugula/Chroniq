@@ -432,14 +432,23 @@ export default function BookingsPage() {
     load(tab)
   }, [tab, load])
 
-  // Load recent count for notification badge
-  useEffect(() => {
+  // Fetch & auto-poll recent count every 30 s so new bookings show up without refresh
+  const refreshRecent = useCallback(() => {
     api.getRecentBookings(5)
       .then(data => setRecentCount(Array.isArray(data) ? data.length : 0))
       .catch(() => {})
   }, [])
 
-  const handleCancelled = (uid) => { setBookings(prev => prev.filter(b => b.uid !== uid)) }
+  useEffect(() => {
+    refreshRecent()
+    const id = setInterval(refreshRecent, 30_000)
+    return () => clearInterval(id)
+  }, [refreshRecent])
+
+  const handleCancelled = (uid) => {
+    setBookings(prev => prev.filter(b => b.uid !== uid))
+    refreshRecent()
+  }
 
   const handleRescheduled = (updated) => {
     setBookings(prev => {
@@ -453,6 +462,7 @@ export default function BookingsPage() {
       })
       return next
     })
+    refreshRecent()
   }
 
   // Derive unique event types for filter dropdown

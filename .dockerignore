@@ -1,0 +1,29 @@
+# ── Root .dockerignore ────────────────────────────────────────────────────────
+.git
+.gitignore
+**/.DS_Store
+**/Thumbs.db
+
+# Node / frontend
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.*
+
+# Python / backend
+backend/__pycache__
+backend/**/__pycache__
+backend/**/*.pyc
+backend/**/*.pyo
+backend/.env
+backend/venv
+backend/.venv
+backend/*.egg-info
+
+# IDE / editor
+.vscode
+.idea
+**/.idea
+
+# Docs / misc
+*.md
