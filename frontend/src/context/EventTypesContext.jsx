@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import * as api from '../utils/api';
+import * as api from '../api/eventTypes';
 import toast from 'react-hot-toast';
 
 const EventTypesContext = createContext();
