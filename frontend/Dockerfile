@@ -17,7 +17,8 @@ COPY . .
 
 # VITE_API_URL is baked in at build time. The nginx config proxies /api → backend
 # so we point Vite to the same origin (empty string = relative URL).
-ENV VITE_API_URL=""
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build
 

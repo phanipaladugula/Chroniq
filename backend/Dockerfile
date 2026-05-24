@@ -33,4 +33,4 @@ USER chroniq
 EXPOSE 8000
 
 # Entrypoint: start uvicorn (workers auto-scaled by Railway/Render; 1 worker fine for Compose)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips=*"]
